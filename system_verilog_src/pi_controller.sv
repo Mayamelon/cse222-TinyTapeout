@@ -1,20 +1,19 @@
 module pi_controller (
-    input [9:0] sensor_i; // 10 bit input, unsigned
-    input [9:0] setpoint_i; // 10 bit setpoint, unsigned
+    input [11:0] sensor_i; // 12 bit input, unsigned
+    input [11:0] setpoint_i; // 12 bit setpoint, unsigned
 
-    input [0:-5] Kp_i; // multiply error by this fixed point value, LSB is 2^-5 = 0.03125, max value is 1.96875
-    input [0:-5] Ki_i; // multiply integrated error by this fixed point value
+    input [3:0] Kp_i; // determines how much to shift P term by - shifts right by any values 0x0-0x7. 0x8 shifts left by 1 and 0x9-0xF disables the P term
+    input [3:0] Ki_i; // determines how much to shift I term by - shifts right by any values 0x0-0x7. 0x8 shifts left by 1 and 0x9-0xF disables the I term
 
-    input [0:0] reset_i;
+    input [0:0] reset_n; // reset low
     input [0:0] clk_i;
     
-    input [0:0] process_data_i; // should pulse once per operation.
+    input [0:0] process_data_i; // should pulse once per operation. Can be disabled entirely
+
     // 2 bytes per operation, so 2 UART frames
     // uart bitrate is 115200
     // 115200 / (2 uart frames) / (1 start bit + 8 data bits + 0 parity bits + 1 stop bit) = 5760 operations per second
     // 5760Hz is desired rate that this should pulse
-
-    input [0:0] enable_i;
 
     output signed [11:0] result_o; // 12 bit output, signed
 
@@ -24,17 +23,17 @@ wire signed [11:0] error_w;
 
 assign error_w = setpoint_i - sensor_i;
 
-logic signed [11:0] accumulated_error_l; // should not be more than 2^11-1 = 2047 or less than -2^11 = -2048
+logic signed [15:0] accumulated_error_l; // signed. Should not be more than 2^15-1 = 32767 or less than -2^15 = -32768
 
 always_ff @(posedge clk_i) begin
-    if (reset_i) begin
+    if (~reset_n) begin
         accumulated_error_l <= 16'h0;
     end else begin
-        if (enable_i & process_data_i) begin
-            if (accumulated_error_l + error_w > 2047) begin
-                accumulated_error_l <= 2047;
-            end else if (accumulated_error_l + error_w < -2048) begin
-                accumulated_error_l <= -2048;
+        if (process_data_i) begin
+            if (accumulated_error_l + error_w > 32767) begin
+                accumulated_error_l <= 32767;
+            end else if (accumulated_error_l + error_w < -32768) begin
+                accumulated_error_l <= -32768;
             end else begin
                 accumulated_error_l <= accumulated_error_l + error_w;
             end
@@ -44,22 +43,47 @@ always_ff @(posedge clk_i) begin
     end
 end
 
-logic signed [11:-7] p_l;
-logic signed [11:-7] i_l;
+logic signed [12:0] p_l;
+logic signed [16:0] i_l;
 
-logic signed [12:]
+logic signed [17:0] sum_l;
+
+logic signed [11:0] result_l; // ranges from 2,047 to -2,048
 
 always_comb begin
     p_l = 0;
     i_l = 0;
-    if (enable_i) begin // gates expensive multiplication logic with the enable input (for power?)
-        p_l = (error_w * Kp_i);
-        i_l = (accumulated_error_l * Ki_i);
+    if (process_data_i) begin
+        if ((Kp_i >= 4'h0) & (Kp_i <= 4'h7)) begin
+            p_l = ({error_w >>> Kp_i}[12:0]) // arithmetic right shift preserves sign
+        end else if (Kp_i == 4'h8) begin
+            p_l = ({error_w <<< 1}[12:0]) // arithmetic left shift preserves sign
+        end else begin // disable p term
+            p_l = 0;
+        end
+        
+        if ((Ki_i >= 4'h0) & (Ki_i <= 4'h7)) begin
+            i_l = ({accumulated_error_l >>> Ki_i}[16:0]) // arithmetic right shift preserves sign
+        end else if (Ki_i == 4'h8) begin
+            i_l = ({accumulated_error_l <<< 1}[16:0]) // arithmetic left shift preserves sign
+        end else begin // disable i term
+            i_l = 0;
+        end
 
-        result_o = {p_l + i_l}[12:0];
+        sum_l = {p_l + i_l};
+
+        if (sum_l > 2047) begin
+            result_l = 2047
+        end else if (sum_l < -2048) begin
+            result_l = -2048
+        end else begin
+            result_l = sum_l;
+        end
+
     end
 end
 
+assign result_o = result_l;
 
 
 endmodule

@@ -1,6 +1,6 @@
 module slower_clks (
     input [0:0] clk_i;
-    input [0:0] reset_i;
+    input [0:0] reset_n; // reset low
 
     input [0:0] enable_i;
 
@@ -20,7 +20,7 @@ module slower_clks (
     logic [6:0] counter_n;
 
     always_ff @(posedge clk_i) begin
-        if (reset_i) begin
+        if (~reset_n) begin
             counter_r <= 0;
         end else begin
             counter_r <= counter_n;

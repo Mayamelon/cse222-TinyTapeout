@@ -4,7 +4,7 @@ module uart (
 
     input [0:0] clk_i;
     input [0:0] uart_pulse_i; // should pulse for one clock period at 115200Hz
-    input [0:0] reset_i;
+    input [0:0] reset_n; // reset low
 
     input [7:0] tx_data_i;
     input [0:0] tx_data_valid_i;
@@ -27,7 +27,7 @@ module uart (
     logic [0:0] tx_l;
 
     always_ff (@posedge clk_i) begin
-        if (reset_i) begin
+        if (~reset_n) begin
             tx_state_r <= IDLE;
             tx_data_pos_r <= 0;
         end else begin
@@ -99,7 +99,7 @@ module uart (
 
 
     always_ff (@posedge clk_i) begin
-        if (reset_i) begin
+        if (~reset_n) begin
             rx_state_r <= IDLE;
             rx_data_buffer_r <= 0;
             rx_data_pos_r <= 0;
