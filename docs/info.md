@@ -28,7 +28,7 @@ The controller can be sent various commands by changing the structure of the dat
 - 01xxxxxx - sets the lower 6 bits [5:0] of the internal sensor register to the lower 6 bits [5:0] of the message and runs the controller. This will also accumulate error
 - 1xxxxxxx - halts the controller and allows for it to be configured:
   - 1000xxx0 - resets the controller. This is the same as pulling the external reset pin down
-  - 1000xxx1 - resets the accumulated error for the I term of the controller
+  - 1000xxx1 - resets the accumulated error for the I term of the controller. Note that the accumulated error is stored internally as a 16 bit signed integer
   - 1001xxxx - Sets the upper 4 bits [11:8] of the setpoint to the lower 4 bits of the message [3:0] 
   - 1010xxxx - Sets the middle 4 bits [7:4] of the setpoint to the lower 4 bits of the message [3:0]
   - 1011xxxx - Sets the lower 4 bits [3:0] of the setpoint to the lower 4 bits of the message [3:0]
@@ -37,14 +37,14 @@ The controller can be sent various commands by changing the structure of the dat
   - 111xxxxx - Does nothing.
 
 
-Upon recieving a 01xxxxxx message, the controller will read its internal sensor register and immediately output the resulting computed value over on the TX line. This operation takes 2 UART frames and has the following format:
+Upon recieving a 01xxxxxx message, the controller will read its internal sensor register and immediately outputs the resulting computed value over on the TX line. This operation takes 2 UART frames and has the following format:
 - 00xxxxxx - The upper 6 bits [11:6] of the output are sent first, with the 00 header
 - 01xxxxxx - the lower 6 bits [5:0] are then sent, with the 01 header
 
-### Note the sensor and setpoint are unsiged values 12 bit values. The output is signed in 2s complement and is 12 bits, where the MSB is the sign bit
+### Note the sensor and setpoint are unsiged 12 bit values. The output is signed in 2s complement and is 12 bits, where the MSB is the sign bit
 
 ### Kp and Ki value formats:
-Due to space constraints, the chip cannot implement a multiplier for the P and I terms. Instead, it performs bit shifts on the error and accumulated error values and sums these.
+Due to space constraints, the chip cannot implement a multiplier for the P and I terms. Instead, it performs bit shifts on the error and accumulated error values and sums these to form the output.
 - Kp - determines how much to shift error by - shifts right by any values 0x0-0x7. 0x8 shifts left by 1 and 0x9-0xF disables the P term
 - Ki - determines how much to shift accumulated error by - shifts right by any values 0x0-0x7. 0x8 shifts left by 1 and 0x9-0xF disables the I term
 
@@ -58,3 +58,4 @@ The device supports up to 48Mhz external clock with a UART baudrate of 460800
 
 - Change the interface to be SPI instead of UART for faster communication
 - Increase the size of the chip to allow for an internal multiplier instead of shifts for the Kp and Ki constants
+- Allow the chip to report the accumulated I term
