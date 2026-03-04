@@ -6,7 +6,7 @@ SIM ?= icarus
 FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
-PROJECT_SOURCES = tiny_PI_controller.sv pi_controller.sv slower_clks.sv pi_controller.sv uart.sv
+PROJECT_SOURCES = tt_um_mayamelon_top.sv pi_controller.sv slower_clks.sv pi_controller.sv uart.sv
 
 ifneq ($(GATES),yes)
 

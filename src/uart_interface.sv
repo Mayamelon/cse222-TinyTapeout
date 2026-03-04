@@ -25,6 +25,8 @@ module uart_interface (
     input [0:0] result_valid_i;
 );
 
+
+    // Receive:
     logic [11:0] sensor_r;
     logic [11:0] sensor_n;
     
@@ -48,7 +50,6 @@ module uart_interface (
 
     always_ff (@posedge clk_i) begin
 
-        // Receive:
 
         if (~reset_n) begin
             sensor_r <= 0;
@@ -71,10 +72,6 @@ module uart_interface (
             soft_reset_r <= soft_reset_n;
             reset_accumulated_error_r <= reset_accumulated_error_n;
         end
-
-
-        // Transmit:
-        
     end
 
     assign sensor_o = sensor_r;
@@ -86,6 +83,31 @@ module uart_interface (
     assign process_data_o = process_data_r;
     assign soft_reset_o = soft_reset_r;
     assign reset_accumulated_error_o = reset_accumulated_error_r;
+
+
+    // Transmit:
+    logic [11:0] result_r;
+    logic [11:0] result_n;
+
+    logic [0:0] result_pos_r;
+    logic [0:0] result_pos_n;
+
+    logic [0:0] result_valid_r;
+    logic [0:0] result_valid_n;
+
+    always_ff @(posedge clk_i) begin
+        if (~reset_n) begin
+            result_r <= 0;
+            result_pos_r <= 0;
+            result_valid_r <= 0;
+        end else begin
+            result_r <= result_n;
+            result_pos_r <= result_pos_n;
+            result_valid_r <= result_valid_n;
+        end
+    end
+
+    assign result_o = result_r;
 
     always_comb begin
 
@@ -138,11 +160,16 @@ module uart_interface (
 
 
         // Transmit:
+        result_n = result_r;
+        result_pos_n = result_pos_r;
+        result_valid_n = resul_valid_r;
 
         if (result_valid_i) begin
-
+            result_n = result_i;
         end else begin
-            // do nothing
+            result_n = 0;
+            result_pos_n = 0;
+            result_valid_n = 0;
         end
 
     end
