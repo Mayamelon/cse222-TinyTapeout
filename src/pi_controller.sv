@@ -5,10 +5,12 @@ module pi_controller (
     input [3:0] Kp_i, // determines how much to shift P term by - shifts right by any values 0x0-0x7. 0x8 shifts left by 1 and 0x9-0xF disables the P term
     input [3:0] Ki_i, // determines how much to shift I term by - shifts right by any values 0x0-0x7. 0x8 shifts left by 1 and 0x9-0xF disables the I term
 
-    input [0:0] reset_n, // reset low
     input [0:0] clk_i,
+    input [0:0] reset_i, // reset high
     
     input [0:0] process_data_i, // should pulse once per operation. Can be disabled entirely
+
+    input [0:0] reset_accumulated_error_i,
 
     // 2 bytes per operation, so 2 UART frames
     // uart bitrate is 115200
@@ -27,7 +29,7 @@ assign error_w = setpoint_i - sensor_i;
 logic signed [15:0] accumulated_error_l; // signed. Should not be more than 2^15-1 = 32767 or less than -2^15 = -32768
 
 always_ff @(posedge clk_i) begin
-    if (~reset_n) begin
+    if (reset_i | reset_accumulated_error_i) begin
         accumulated_error_l <= 16'h0;
     end else begin
         if (process_data_i) begin

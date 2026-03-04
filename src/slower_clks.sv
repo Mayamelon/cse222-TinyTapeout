@@ -1,6 +1,6 @@
 module slower_clks (
     input [0:0] clk_i,
-    input [0:0] reset_n, // reset low
+    input [0:0] reset_i, // reset high
 
     output [0:0] uart_pulse_o // pulses for 1 clk cycle at 115200 Hz
 );
@@ -18,7 +18,7 @@ module slower_clks (
     logic [6:0] counter_n;
 
     always_ff @(posedge clk_i) begin
-        if (~reset_n) begin
+        if (reset_i) begin
             counter_r <= 0;
         end else begin
             counter_r <= counter_n;

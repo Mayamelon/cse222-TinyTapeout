@@ -4,34 +4,34 @@ module uart (
 
     input [0:0] clk_i,
     input [0:0] uart_pulse_i, // should pulse for one clock period at 115200Hz
-    input [0:0] reset_n, // reset low
+    input [0:0] reset_i, // reset high
 
-    input [7:0] tx_data_i,
+    input [15:0] tx_data_i,
     input [0:0] tx_data_valid_i,
     
     output [7:0] rx_data_o,
     output [0:0] rx_data_valid_o
 );
 
-    typedef enum logic [2:0] {
-        IDLE=3'h1,
-        START=3'h2,
-        DATA=3'h4
-    } states_t; // one hot
+
+    localparam IDLE = 4'h1;
+    localparam START = 4'h2;
+    localparam DATA = 4'h4;
+    localparam STOP = 4'h8;
 
 
 
     // transmit
-    states_t tx_state_r;
-    states_t tx_state_n;
+    logic [3:0] tx_state_r;
+    logic [3:0] tx_state_n;
     
-    logic [2:0] tx_data_pos_r;
-    logic [2:0] tx_data_pos_n;
+    logic [3:0] tx_data_pos_r;
+    logic [3:0] tx_data_pos_n;
 
     logic [0:0] tx_l;
 
     always_ff @(posedge clk_i) begin
-        if (~reset_n) begin
+        if (reset_i) begin
             tx_state_r <= IDLE;
             tx_data_pos_r <= 0;
         end else begin
@@ -55,15 +55,18 @@ module uart (
             DATA: begin
                 tx_l = tx_data_i[tx_data_pos_r];
             end
+            STOP: begin
+                tx_l = 1;
+            end
             default: begin
                 tx_l = 1;
             end
         endcase
 
         // state transitions:
+        tx_data_pos_n = tx_data_pos_r;
         if (uart_pulse_i) begin
 
-            tx_data_pos_n = 0;
             case (tx_state_r)
                 IDLE: begin
                     if (tx_data_valid_i) begin
@@ -76,12 +79,17 @@ module uart (
                     tx_state_n = DATA;
                 end
                 DATA: begin
-                    tx_data_pos_n = {tx_data_pos_r + 1'b1}[2:0];
-                    if (tx_data_pos_r == 3'h7) begin
+                    tx_data_pos_n = {tx_data_pos_r + 1'b1}[3:0];
+                    if (tx_data_pos_r == 4'h7) begin
+                        tx_state_n = STOP;
+                    end else if (tx_data_pos_r == 4'hF) begin
                         tx_state_n = IDLE;
                     end else begin
                         tx_state_n = DATA;
                     end
+                end
+                STOP: begin
+                    tx_state_n = START;
                 end
                 default: begin
                     tx_state_n = IDLE;
@@ -95,8 +103,8 @@ module uart (
 
 
     // receive
-    states_t rx_state_r;
-    states_t rx_state_n;
+    logic [2:0] rx_state_r;
+    logic [2:0] rx_state_n;
     
     logic [7:0] rx_data_buffer_r;
     logic [7:0] rx_data_buffer_n;
@@ -109,8 +117,8 @@ module uart (
 
 
     always_ff @(posedge clk_i) begin
-        if (~reset_n) begin
-            rx_state_r <= IDLE;
+        if (reset_i) begin
+            rx_state_r <= IDLE[2:0];
             rx_data_buffer_r <= 0;
             rx_data_pos_r <= 0;
         end else begin
@@ -127,24 +135,24 @@ module uart (
 
             rx_data_pos_n = 0;
             case (rx_state_r)
-                IDLE: begin
+                IDLE[2:0]: begin
                     if (~rx_i) begin
-                        rx_state_n = START;
+                        rx_state_n = START[2:0];
                     end
                 end
-                START: begin
-                    rx_state_n = DATA;
+                START[2:0]: begin
+                    rx_state_n = DATA[2:0];
                 end
-                DATA: begin
+                DATA[2:0]: begin
                     rx_data_pos_n = {rx_data_pos_r + 1'b1}[2:0];
                     if (rx_data_pos_r == 3'h7) begin
-                        rx_state_n = IDLE;
+                        rx_state_n = IDLE[2:0];
                     end else begin
-                        rx_state_n = DATA;
+                        rx_state_n = DATA[2:0];
                     end
                 end
                 default: begin
-                    rx_state_n = IDLE;
+                    rx_state_n = IDLE[2:0];
                 end
 
             endcase
@@ -157,7 +165,7 @@ module uart (
 
         // state outputs:
         case ({rx_state_r, rx_data_pos_r, uart_pulse_i})
-            {DATA, 3'h7, 1'b1}: begin // in data state AND all 8 data bits recieved AND on a uart pulse
+            {DATA[2:0], 3'h7, 1'b1}: begin // in data state AND all 8 data bits recieved AND on a uart pulse
                 rx_data_l = rx_data_buffer_r;
                 rx_data_valid_l = 1;
             end

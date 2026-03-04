@@ -2,11 +2,11 @@ module uart_interface (
     input [7:0] rx_data_i,
     input [0:0] rx_data_valid_i,
 
-    output [7:0] tx_data_o,
+    output [15:0] tx_data_o,
     output [0:0] tx_data_valid_o,
 
     input [0:0] clk_i,
-    input [0:0] reset_n, // reset low
+    input [0:0] reset_i, // reset high
 
 
     output [11:0] sensor_o,
@@ -51,7 +51,7 @@ module uart_interface (
     always_ff @(posedge clk_i) begin
 
 
-        if (~reset_n) begin
+        if (reset_i) begin
             sensor_r <= 0;
             setpoint_r <= 0;
 
@@ -86,26 +86,24 @@ module uart_interface (
 
 
     // Transmit:
-    logic [11:0] result_r;
-    logic [11:0] result_n;
+    logic [15:0] tx_data_r;
+    logic [15:0] tx_data_n;
 
-    logic [0:0] result_pos_r;
-    logic [0:0] result_pos_n;
-
-    logic [0:0] result_valid_r;
-    logic [0:0] result_valid_n;
+    logic [0:0] tx_data_valid_r;
+    logic [0:0] tx_data_valid_n;
 
     always_ff @(posedge clk_i) begin
-        if (~reset_n) begin
-            result_r <= 0;
-            result_pos_r <= 0;
-            result_valid_r <= 0;
+        if (reset_i) begin
+            tx_data_r <= 0;
+            tx_data_valid_r <= 0;
         end else begin
-            result_r <= result_n;
-            result_pos_r <= result_pos_n;
-            result_valid_r <= result_valid_n;
+            tx_data_r <= tx_data_n;
+            tx_data_valid_r <= tx_data_valid_n;
         end
     end
+
+    assign tx_data_o = tx_data_r;
+    assign tx_data_valid_o = tx_data_valid_r;
 
     always_comb begin
 
@@ -158,17 +156,15 @@ module uart_interface (
 
 
         // Transmit:
-        result_n = result_r;
-        result_pos_n = result_pos_r;
-        result_valid_n = result_valid_r;
 
         if (result_valid_i) begin
-            result_n = result_i;
+            tx_data_n = {2'b00, result_i[11:6], 2'b01, result_i[5:0]};
+            tx_data_valid_n = 1;
         end else begin
-            result_n = 0;
-            result_pos_n = 0;
-            result_valid_n = 0;
+            tx_data_n = 0;
+            tx_data_valid_n = 0;
         end
+
 
     end
 
