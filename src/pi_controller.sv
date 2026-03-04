@@ -63,17 +63,17 @@ always_comb begin
     result_valid_l = 0;
     if (process_data_i) begin
         if (Kp_i <= 4'h7) begin
-            p_l = ({{1'b0, error_w} >>> Kp_i}[12:0]); // arithmetic right shift preserves sign
+            p_l = ({{1'b0, error_w} >>> Kp_i}); // arithmetic right shift preserves sign
         end else if (Kp_i == 4'h8) begin
-            p_l = ({{1'b0, error_w} <<< 1}[12:0]); // arithmetic left shift preserves sign
+            p_l = ({{1'b0, error_w} <<< 1}); // arithmetic left shift preserves sign
         end else begin // disable p term
             p_l = 0;
         end
         
         if (Ki_i <= 4'h7) begin
-            i_l = ({{1'b0, accumulated_error_l} >>> Ki_i}[16:0]); // arithmetic right shift preserves sign
+            i_l = ({{1'b0, accumulated_error_l} >>> Ki_i}); // arithmetic right shift preserves sign
         end else if (Ki_i == 4'h8) begin
-            i_l = ({{1'b0, accumulated_error_l} <<< 1}[16:0]); // arithmetic left shift preserves sign
+            i_l = ({{1'b0, accumulated_error_l} <<< 1}); // arithmetic left shift preserves sign
         end else begin // disable i term
             i_l = 0;
         end

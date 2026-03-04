@@ -40,6 +40,8 @@ module uart (
         end
     end
 
+    logic [4:0] tx_data_pos_r_plus_1_l = tx_data_pos_r + 1'b1;
+
     always_comb begin
 
         // state outputs:
@@ -79,7 +81,7 @@ module uart (
                     tx_state_n = DATA;
                 end
                 DATA: begin
-                    tx_data_pos_n = {tx_data_pos_r + 1'b1}[3:0];
+                    tx_data_pos_n = tx_data_pos_r_plus_1_l[3:0];
                     if (tx_data_pos_r == 4'h7) begin
                         tx_state_n = STOP;
                     end else if (tx_data_pos_r == 4'hF) begin
@@ -127,6 +129,8 @@ module uart (
             rx_data_pos_r <= rx_data_pos_n;
         end
     end
+
+    logic [3:0] rx_data_pos_n_plus_1_l = rx_data_pos_r + 1'b1;
     
     always_comb begin
         
@@ -144,7 +148,7 @@ module uart (
                     rx_state_n = DATA[2:0];
                 end
                 DATA[2:0]: begin
-                    rx_data_pos_n = {rx_data_pos_r + 1'b1}[2:0];
+                    rx_data_pos_n = rx_data_pos_n_plus_1_l[2:0];
                     if (rx_data_pos_r == 3'h7) begin
                         rx_state_n = IDLE[2:0];
                     end else begin
