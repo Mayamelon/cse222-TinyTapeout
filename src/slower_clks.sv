@@ -1,10 +1,8 @@
 module slower_clks (
-    input [0:0] clk_i;
-    input [0:0] reset_n; // reset low
+    input [0:0] clk_i,
+    input [0:0] reset_n, // reset low
 
-    input [0:0] enable_i;
-
-    output [0:0] uart_pulse_o; // pulses for 1 clk cycle at 115200 Hz
+    output [0:0] uart_pulse_o // pulses for 1 clk cycle at 115200 Hz
 );
 
     // input clock generated at 12MHz from https://tinytapeout.com/specs/pcb/#rp2040-on-board-mcu
@@ -34,7 +32,7 @@ module slower_clks (
             counter_n = 0;
             uart_pulse_l = 1;
         end else begin
-            counter_n = {counter_r + 1}[6:0];
+            counter_n = {counter_r + 1'b1}[6:0];
             uart_pulse_l = 0;
         end
     end

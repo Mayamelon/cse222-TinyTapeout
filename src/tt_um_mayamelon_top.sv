@@ -20,44 +20,45 @@ module tt_um_mayamelon_top (
 
     wire [0:0] uart_pulse_w;
 
-    slower_clks slower_clks_inst
-        (.clk_i(clk_i)
-        ,.reset_n(rst_n)
-
-        ,.enable_i(1'b1)
-
-        ,.uart_pulse_o(uart_pulse_w));
+    slower_clks slower_clks_inst (
+        .clk_i(clk),
+        .reset_n(rst_n),
+        .uart_pulse_o(uart_pulse_w)
+    );
 
 
-    uart uart_inst
-        (.rx_i(ui_in[3])
-        ,.tx_o(uo_out[4])
-
-        ,.clk_i(clk)
-        ,.reset_n(rst_n)
-
-        ,.uart_pulse_i(uart_pulse_w)
-
-        ,.tx_data_i()
-        ,.tx_data_valid_i()
-
-        ,.rx_data_o()
-        ,.rx_data_valid_o());
-
-
-    pi_controller pi_controller_inst
-        (.sensor_i()
-        ,.setpoint_i()
-
-        ,.Kp_i()
-        ,.Ki_i()
-
-        ,.reset_n()
-        ,.clk_i()
+    uart uart_inst (
+        .rx_i(ui_in[3]),
+        .tx_o(uo_out[4]),
         
-        ,.process_data_i()
+        .clk_i(clk),
+        .reset_n(rst_n),
+        
+        .uart_pulse_i(uart_pulse_w),
+        
+        .tx_data_i(),
+        .tx_data_valid_i(),
+        
+        .rx_data_o(),
+        .rx_data_valid_o()
+    );
 
-       ,.result_o());
+
+    pi_controller pi_controller_inst (
+        .sensor_i(),
+        .setpoint_i(),
+        
+        .Kp_i(),
+        .Ki_i(),
+        
+        .reset_n(),
+        .clk_i(),
+        
+        .process_data_i(),
+        
+        .result_o(),
+        .result_valid_o()
+    );
 
 
 

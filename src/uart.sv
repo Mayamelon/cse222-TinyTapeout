@@ -1,32 +1,36 @@
 module uart (
-    input [0:0] rx_i;
-    output [0:0] tx_o;
+    input [0:0] rx_i,
+    output [0:0] tx_o,
 
-    input [0:0] clk_i;
-    input [0:0] uart_pulse_i; // should pulse for one clock period at 115200Hz
-    input [0:0] reset_n; // reset low
+    input [0:0] clk_i,
+    input [0:0] uart_pulse_i, // should pulse for one clock period at 115200Hz
+    input [0:0] reset_n, // reset low
 
-    input [7:0] tx_data_i;
-    input [0:0] tx_data_valid_i;
+    input [7:0] tx_data_i,
+    input [0:0] tx_data_valid_i,
     
-    output [7:0] rx_data_o;
-    output [0:0] rx_data_valid_o;
+    output [7:0] rx_data_o,
+    output [0:0] rx_data_valid_o
 );
 
-    typedef enum {IDLE=3'h1, START=3'h2, DATA=3'h4} states_t; // one hot
+    typedef enum logic [2:0] {
+        IDLE=3'h1,
+        START=3'h2,
+        DATA=3'h4
+    } states_t; // one hot
 
 
 
     // transmit
-    logic [2:0] tx_state_r;
-    logic [2:0] tx_state_n;
+    states_t tx_state_r;
+    states_t tx_state_n;
     
-    logic [2:0] tx_data_pos_r
+    logic [2:0] tx_data_pos_r;
     logic [2:0] tx_data_pos_n;
 
     logic [0:0] tx_l;
 
-    always_ff (@posedge clk_i) begin
+    always_ff @(posedge clk_i) begin
         if (~reset_n) begin
             tx_state_r <= IDLE;
             tx_data_pos_r <= 0;
@@ -49,7 +53,10 @@ module uart (
                 tx_l = 0;
             end
             DATA: begin
-                tx_l = tx_data_i[tx_data_pos_r:tx_data_pos_r];
+                tx_l = tx_data_i[tx_data_pos_r];
+            end
+            default: begin
+                tx_l = 1;
             end
         endcase
 
@@ -69,12 +76,15 @@ module uart (
                     tx_state_n = DATA;
                 end
                 DATA: begin
-                    tx_data_pos_n = {tx_data_pos_r + 1}[2:0];
+                    tx_data_pos_n = {tx_data_pos_r + 1'b1}[2:0];
                     if (tx_data_pos_r == 3'h7) begin
                         tx_state_n = IDLE;
                     end else begin
                         tx_state_n = DATA;
                     end
+                end
+                default: begin
+                    tx_state_n = IDLE;
                 end
             endcase
         end
@@ -85,20 +95,20 @@ module uart (
 
 
     // receive
-    logic [2:0] rx_state_r;
-    logic [2:0] rx_state_n;
+    states_t rx_state_r;
+    states_t rx_state_n;
     
-    logic [7:0] rx_data_buffer_r
+    logic [7:0] rx_data_buffer_r;
     logic [7:0] rx_data_buffer_n;
     
-    logic [2:0] rx_data_pos_r
+    logic [2:0] rx_data_pos_r;
     logic [2:0] rx_data_pos_n;
 
     logic [7:0] rx_data_l;
     logic [0:0] rx_data_valid_l;
 
 
-    always_ff (@posedge clk_i) begin
+    always_ff @(posedge clk_i) begin
         if (~reset_n) begin
             rx_state_r <= IDLE;
             rx_data_buffer_r <= 0;
@@ -126,17 +136,20 @@ module uart (
                     rx_state_n = DATA;
                 end
                 DATA: begin
-                    rx_data_pos_n = {rx_data_pos_r + 1}[2:0];
+                    rx_data_pos_n = {rx_data_pos_r + 1'b1}[2:0];
                     if (rx_data_pos_r == 3'h7) begin
                         rx_state_n = IDLE;
                     end else begin
                         rx_state_n = DATA;
                     end
                 end
+                default: begin
+                    rx_state_n = IDLE;
+                end
 
             endcase
 
-            rx_data_buffer_n = {rx_data_buffer_r[6:0], rx_i}
+            rx_data_buffer_n = {rx_data_buffer_r[6:0], rx_i};
         end else begin
             rx_state_n = rx_state_r;
             rx_data_buffer_n = rx_data_buffer_r;
@@ -144,7 +157,7 @@ module uart (
 
         // state outputs:
         case ({rx_state_r, rx_data_pos_r, uart_pulse_i})
-            {DATA, 3'h7, 1}: begin // in data state AND all 8 data bits recieved AND on a uart pulse
+            {DATA, 3'h7, 1'b1}: begin // in data state AND all 8 data bits recieved AND on a uart pulse
                 rx_data_l = rx_data_buffer_r;
                 rx_data_valid_l = 1;
             end

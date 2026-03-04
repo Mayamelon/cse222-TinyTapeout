@@ -1,28 +1,28 @@
 module uart_interface (
-    input [7:0] rx_data_i;
-    input [0:0] rx_data_valid_i;
+    input [7:0] rx_data_i,
+    input [0:0] rx_data_valid_i,
 
-    output [7:0] tx_data_o;
-    output [0:0] tx_data_valid_o;
+    output [7:0] tx_data_o,
+    output [0:0] tx_data_valid_o,
 
-    input [0:0] clk_i;
-    input [0:0] reset_n; // reset low
+    input [0:0] clk_i,
+    input [0:0] reset_n, // reset low
 
 
-    output [11:0] sensor_o;
-    output [11:0] setpoint_o;
+    output [11:0] sensor_o,
+    output [11:0] setpoint_o,
 
-    output [0:0] process_data_o;
+    output [0:0] process_data_o,
 
-    output [0:0] reset_accumulated_error_o;
+    output [0:0] reset_accumulated_error_o,
 
-    output [3:0] Kp_o; 
-    output [3:0] Ki_o;
+    output [3:0] Kp_o,
+    output [3:0] Ki_o,
 
-    output [0:0] soft_reset_o;
+    output [0:0] soft_reset_o,
     
-    input [11:0] result_i;
-    input [0:0] result_valid_i;
+    input [11:0] result_i,
+    input [0:0] result_valid_i
 );
 
 
@@ -48,7 +48,7 @@ module uart_interface (
     logic [0:0] reset_accumulated_error_r;
     logic [0:0] reset_accumulated_error_n;
 
-    always_ff (@posedge clk_i) begin
+    always_ff @(posedge clk_i) begin
 
 
         if (~reset_n) begin
@@ -107,8 +107,6 @@ module uart_interface (
         end
     end
 
-    assign result_o = result_r;
-
     always_comb begin
 
         // Recieve:
@@ -116,39 +114,39 @@ module uart_interface (
         setpoint_n = setpoint_r;
 
         Kp_n = Kp_r;
-        Ki_n = Ki_n;
+        Ki_n = Ki_r;
 
-        process_data_n = 0;
-        soft_reset_n = 0;
-        reset_accumulated_error_n = 0;
+        process_data_n = 1'b0;
+        soft_reset_n = 1'b0;
+        reset_accumulated_error_n = 1'b0;
     
         if (rx_data_valid_i) begin
             case (rx_data_i[7:7])
-                0: begin // read sensor in
+                1'b0: begin // read sensor in
                     case (rx_data_i[6:6])
-                        0: begin // upper 6 bits
+                        1'b0: begin // upper 6 bits
                             sensor_n[11:6] = rx_data_i[5:0];
                         end
-                        1: begin // lower 6 bits
+                        1'b1: begin // lower 6 bits
                             sensor_n[5:0] = rx_data_i[5:0];
                             process_data_n = 1;
                         end
                     endcase
                 end
-                1: begin // configure controller
+                1'b1: begin // configure controller
                     case (rx_data_i[6:4])
-                        000: begin
+                        3'b000: begin
                             case (rx_data_i[0:0])
-                                0: soft_reset_o = 1;
-                                1: reset_accumulated_error_r = 1;
+                                0: soft_reset_n = 1'b1;
+                                1: reset_accumulated_error_n = 1'b1;
                             endcase
                         end
-                        001: setpoint_n[11:8] = rx_data_i[3:0];
-                        010: setpoint_n[7:4] = rx_data_i[3:0];
-                        011: setpoint_n[3:0] = rx_data_i[3:0];
-                        100: kp_n = rx_data_i[3:0];
-                        101: ki_n = rx_data_i[3:0];
-                        110, 111: begin
+                        3'b001: setpoint_n[11:8] = rx_data_i[3:0];
+                        3'b010: setpoint_n[7:4] = rx_data_i[3:0];
+                        3'b011: setpoint_n[3:0] = rx_data_i[3:0];
+                        3'b100: Kp_n = rx_data_i[3:0];
+                        3'b101: Ki_n = rx_data_i[3:0];
+                        3'b110, 3'b111: begin
                             // do nothing
                         end
                     endcase
@@ -162,7 +160,7 @@ module uart_interface (
         // Transmit:
         result_n = result_r;
         result_pos_n = result_pos_r;
-        result_valid_n = resul_valid_r;
+        result_valid_n = result_valid_r;
 
         if (result_valid_i) begin
             result_n = result_i;
