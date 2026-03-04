@@ -40,7 +40,21 @@ module uart (
         end
     end
 
-    logic [4:0] tx_data_pos_r_plus_1_l = tx_data_pos_r + 1'b1;
+    logic [15:0] tx_data_l;
+
+    always_ff @(posedge clk_i) begin
+        if (reset_i) begin
+            tx_data_l <= 0;
+        end else begin
+            if (tx_data_valid_i) begin
+                // oops got bit ordering wrong so need this to get bits in correct order
+                tx_data_l <= {tx_data_i[8], tx_data_i[9], tx_data_i[10], tx_data_i[11], tx_data_i[12], tx_data_i[13], tx_data_i[14], tx_data_i[15], tx_data_i[0], tx_data_i[1], tx_data_i[2], tx_data_i[3], tx_data_i[4], tx_data_i[5], tx_data_i[6], tx_data_i[7]};
+            end
+        end
+    end
+
+    logic [4:0] tx_data_pos_r_plus_1_l;
+    assign tx_data_pos_r_plus_1_l = tx_data_pos_r + 1'b1;
 
     always_comb begin
 
@@ -55,7 +69,7 @@ module uart (
                 tx_l = 0;
             end
             DATA: begin
-                tx_l = tx_data_i[tx_data_pos_r];
+                tx_l = tx_data_l[tx_data_pos_r];
             end
             STOP: begin
                 tx_l = 1;
@@ -67,7 +81,7 @@ module uart (
 
         // state transitions:
         tx_data_pos_n = tx_data_pos_r;
-        if (uart_pulse_i) begin
+        if (uart_pulse_i | tx_data_valid_i) begin
 
             case (tx_state_r)
                 IDLE: begin
