@@ -36,8 +36,18 @@ module tt_um_mayamelon_top (
     wire [7:0] rx_data_w;
     wire [0:0] rx_data_valid_w;
 
+    logic [1:0] rx_syncronizer_l;
+    // synchronizer
+    always_ff @(posedge clk) begin
+        if (reset_w) begin
+            rx_syncronizer_l <= 2'b0;
+        end else begin
+            rx_syncronizer_l <= {rx_syncronizer_l[0], ui_in[3]};
+        end
+    end
+
     uart uart_inst (
-        .rx_i(ui_in[3]),
+        .rx_i(rx_syncronizer_l[1]),
         .tx_o(uo_out[4]),
         
         .clk_i(clk),
@@ -66,7 +76,7 @@ module tt_um_mayamelon_top (
     wire [0:0] reset_accumulated_error_o;
 
 
-    uart_interface uart_interface (
+    uart_interface uart_interface_inst (
         .rx_data_i(rx_data_w),
         .rx_data_valid_i(rx_data_valid_w),
 
@@ -113,11 +123,6 @@ module tt_um_mayamelon_top (
 
 
 
-
-
-
-
-    // \/ DEFAULT \/
 
     // All output pins must be assigned. If not used, assign to 0.
     assign uo_out[7:5] = 0;

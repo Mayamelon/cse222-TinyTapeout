@@ -27,7 +27,8 @@ module slower_clks (
 
     logic [0:0] uart_pulse_l;
 
-    logic [7:0] counter_r_plus_1_l = counter_r + 1'b1;
+    logic [7:0] counter_r_plus_1_l;
+    assign counter_r_plus_1_l = counter_r + 7'b1;
 
     always_comb begin
         if (counter_r == 7'd103) begin // counts from 0 to 103 -> 104 clock cycles

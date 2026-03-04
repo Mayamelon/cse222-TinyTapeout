@@ -130,11 +130,13 @@ module uart (
         end
     end
 
-    logic [3:0] rx_data_pos_n_plus_1_l = rx_data_pos_r + 1'b1;
+    logic [3:0] rx_data_pos_r_plus_1_l;
+    assign rx_data_pos_r_plus_1_l = rx_data_pos_r + 3'b1;
     
     always_comb begin
         
         // state transitions:
+        rx_data_buffer_n = rx_data_buffer_r;
         if (uart_pulse_i) begin
 
             rx_data_pos_n = 0;
@@ -142,13 +144,18 @@ module uart (
                 IDLE[2:0]: begin
                     if (~rx_i) begin
                         rx_state_n = START[2:0];
+                    end else begin
+                        rx_state_n = IDLE[2:0];
                     end
                 end
                 START[2:0]: begin
                     rx_state_n = DATA[2:0];
+                    // rx_data_pos_n = rx_data_pos_r_plus_1_l[2:0];
+                    rx_data_buffer_n = {rx_data_buffer_r[6:0], rx_i};
                 end
                 DATA[2:0]: begin
-                    rx_data_pos_n = rx_data_pos_n_plus_1_l[2:0];
+                    rx_data_pos_n = rx_data_pos_r_plus_1_l[2:0];
+                    rx_data_buffer_n = {rx_data_buffer_r[6:0], rx_i};
                     if (rx_data_pos_r == 3'h7) begin
                         rx_state_n = IDLE[2:0];
                     end else begin
@@ -160,17 +167,16 @@ module uart (
                 end
 
             endcase
-
-            rx_data_buffer_n = {rx_data_buffer_r[6:0], rx_i};
         end else begin
             rx_state_n = rx_state_r;
-            rx_data_buffer_n = rx_data_buffer_r;
+            rx_data_pos_n = rx_data_pos_r;
         end
 
         // state outputs:
         case ({rx_state_r, rx_data_pos_r, uart_pulse_i})
             {DATA[2:0], 3'h7, 1'b1}: begin // in data state AND all 8 data bits recieved AND on a uart pulse
-                rx_data_l = rx_data_buffer_r;
+                // oops UART is little endian so I had to swap the bits
+                rx_data_l = {rx_data_buffer_r[0], rx_data_buffer_r[1], rx_data_buffer_r[2], rx_data_buffer_r[3], rx_data_buffer_r[4], rx_data_buffer_r[5], rx_data_buffer_r[6], rx_data_buffer_r[7]};
                 rx_data_valid_l = 1;
             end
             default: begin
