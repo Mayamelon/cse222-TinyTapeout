@@ -70,11 +70,12 @@ module tt_um_mayamelon_top (
     wire [3:0] Kp_w;
     wire [3:0] Ki_w;
 
-    wire [11:0] result_w;
+    wire signed [11:0] result_w;
     wire [0:0] result_valid_w;
 
     wire [0:0] reset_accumulated_error_o;
 
+    wire signed [15:0] accumulated_error_w;
 
     uart_interface uart_interface_inst (
         .rx_data_i(rx_data_w),
@@ -85,6 +86,8 @@ module tt_um_mayamelon_top (
 
         .clk_i(clk),
         .reset_i(reset_w),
+
+        .accumulated_error_i(accumulated_error_w),
 
         .sensor_o(sensor_w),
         .setpoint_o(setpoint_w),
@@ -118,7 +121,9 @@ module tt_um_mayamelon_top (
         .reset_accumulated_error_i(reset_accumulated_error_o),
         
         .result_o(result_w),
-        .result_valid_o(result_valid_w)
+        .result_valid_o(result_valid_w),
+
+        .accumulated_error_o(accumulated_error_w)
     );
 
 

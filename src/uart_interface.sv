@@ -8,6 +8,7 @@ module uart_interface (
     input [0:0] clk_i,
     input [0:0] reset_i, // reset high
 
+    input [15:0] accumulated_error_i,
 
     output [11:0] sensor_o,
     output [11:0] setpoint_o,
@@ -134,9 +135,36 @@ module uart_interface (
                 1'b1: begin // configure controller
                     case (rx_data_i[6:4])
                         3'b000: begin
-                            case (rx_data_i[0:0])
-                                0: soft_reset_n = 1'b1;
-                                1: reset_accumulated_error_n = 1'b1;
+                            case (rx_data_i[3:0])
+                                4'b0000: soft_reset_n = 1'b1;
+                                4'b0001: reset_accumulated_error_n = 1'b1;
+                                4'b0010, 4'b0011: /* do nothing */;
+                                4'b0100, 4'b0101, 4'b0110, 4'b0111: /* do nothing */;
+                                4'b1000: begin
+                                    // TODO: need to handle case where you request something else while tx command running
+                                    // TODO: make this not overwritten later
+                                    tx_data_n = {2'b00, sensor_r[11:6], 2'b01, sensor_r[5:0]};
+                                    tx_data_valid_n = 1;
+                                end
+                                4'b1001: begin
+                                    // TODO: need to handle case where you request something else while tx command running
+                                    // TODO: make this not overwritten later
+                                    tx_data_n = {2'b00, setpoint_r[11:6], 2'b01, setpoint_r[5:0]};
+                                    tx_data_valid_n = 1;
+                                end
+                                4'b1010: begin
+                                    // TODO: need to handle case where you request something else while tx command running
+                                    // TODO: make this not overwritten later
+                                    tx_data_n = {4'b0000, Kp_r, 4'b0001, Ki_r};
+                                    tx_data_valid_n = 1;
+                                end
+                                4'b1011: begin
+                                    // TODO: need to handle case where you request something else while tx command running
+                                    // TODO: make this not overwritten later
+                                    tx_data_n = {accumulated_error_i[15:8], accumulated_error_i[7:0]};
+                                    tx_data_valid_n = 1;
+                                end
+                                4'b1100, 4'b1101, 4'b1110, 4'b1111: /* do nothing */;
                             endcase
                         end
                         3'b001: setpoint_n[11:8] = rx_data_i[3:0];
@@ -144,9 +172,7 @@ module uart_interface (
                         3'b011: setpoint_n[3:0] = rx_data_i[3:0];
                         3'b100: Kp_n = rx_data_i[3:0];
                         3'b101: Ki_n = rx_data_i[3:0];
-                        3'b110, 3'b111: begin
-                            // do nothing
-                        end
+                        3'b110, 3'b111: /* do nothing */;
                     endcase
                 end
             endcase
@@ -157,6 +183,8 @@ module uart_interface (
 
         // Transmit:
 
+        // TODO: need to handle case where you request something else while tx command running
+        // TODO: make this not overwritten later
         if (result_valid_i) begin
             tx_data_n = {2'b00, result_i[11:6], 2'b01, result_i[5:0]};
             tx_data_valid_n = 1;

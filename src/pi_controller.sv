@@ -18,7 +18,9 @@ module pi_controller (
     // 5760Hz is desired rate that this should pulse
 
     output signed [11:0] result_o, // 12 bit output, signed
-    output [0:0] result_valid_o
+    output [0:0] result_valid_o,
+
+    output signed [15:0] accumulated_error_o
 
 );
 
@@ -45,6 +47,8 @@ always_ff @(posedge clk_i) begin
         end
     end
 end
+
+assign accumulated_error_o = accumulated_error_l;
 
 logic signed [12:0] p_l;
 logic signed [16:0] i_l;
