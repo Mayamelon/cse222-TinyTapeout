@@ -8,6 +8,7 @@ module uart (
 
     input [15:0] tx_data_i,
     input [0:0] tx_data_valid_i,
+    output [0:0] tx_data_ready_o,
     
     output [7:0] rx_data_o,
     output [0:0] rx_data_valid_o
@@ -47,8 +48,8 @@ module uart (
             tx_data_l <= 0;
         end else begin
             if (tx_data_valid_i) begin
-                // oops got bit ordering wrong so need this to get bits in correct order
-                tx_data_l <= {tx_data_i[8], tx_data_i[9], tx_data_i[10], tx_data_i[11], tx_data_i[12], tx_data_i[13], tx_data_i[14], tx_data_i[15], tx_data_i[0], tx_data_i[1], tx_data_i[2], tx_data_i[3], tx_data_i[4], tx_data_i[5], tx_data_i[6], tx_data_i[7]};
+                // swap byte ordering:
+                tx_data_l <= {tx_data_i[7:0], tx_data_i[15:8]};
             end
         end
     end
@@ -56,14 +57,19 @@ module uart (
     logic [4:0] tx_data_pos_r_plus_1_l;
     assign tx_data_pos_r_plus_1_l = tx_data_pos_r + 1'b1;
 
+    logic [0:0] tx_data_ready_l;
+    assign tx_data_ready_o = tx_data_ready_l;
+
     always_comb begin
 
         // state outputs:
         tx_state_n = tx_state_r;
         tx_l = 1;
+        tx_data_ready_l = 0;
         case (tx_state_r)
             IDLE: begin
                 tx_l = 1;
+                tx_data_ready_l = 1;
             end
             START: begin
                 tx_l = 0;
@@ -99,6 +105,7 @@ module uart (
                     if (tx_data_pos_r == 4'h7) begin
                         tx_state_n = STOP;
                     end else if (tx_data_pos_r == 4'hF) begin
+                        tx_data_ready_l = 1;
                         tx_state_n = IDLE;
                     end else begin
                         tx_state_n = DATA;

@@ -32,6 +32,7 @@ async def test_project(dut):
 
     dut._log.info("initializing UART interface")
     uart_source = UartSource(dut.rx_in, baud=115200, bits=8)
+    uart_sink = UartSink(dut.tx_out, baud=115200, bits=8)
     
     await ClockCycles(dut.clk, 10)
 
@@ -42,7 +43,19 @@ async def test_project(dut):
     await uart_source.write([0b01000001]) # write xxxxxx000001
     await uart_source.wait()
     # result should be 000000000001
-    assert dut.user_project.uart_interface_inst.sensor_r.value == 0b0000_0000_0001
+    await uart_sink.read(count=1)
+    await uart_sink.read(count=1)
+    
+    await uart_source.write([0b10001000]) # command to return value in sensor register
+    await uart_source.wait()
+
+    data_b0 = await uart_sink.read(count=1)
+    data_b1 = await uart_sink.read(count=1)
+
+    data_combined = ((data_b0[0] & 0b00111111) << 6) + (data_b1[0] & 0b00111111)
+
+    assert data_combined == 0b000000_000001
+    
     
 
     dut._log.info("check write sensor value, should be 0b110010001101")
@@ -51,16 +64,33 @@ async def test_project(dut):
     await uart_source.write([0b01001101]) # write xxxxxx001101
     await uart_source.wait()
     # result should be 110010001101
-    assert dut.user_project.uart_interface_inst.sensor_r.value == 0b1100_1000_1101
-
+    await uart_sink.read(count=1)
+    await uart_sink.read(count=1)
     
-    await ClockCycles(dut.clk, 2000)
+    await uart_source.write([0b10001000]) # command to return value in sensor register
+    await uart_source.wait()
+
+    data_b0 = await uart_sink.read(count=1)
+    data_b1 = await uart_sink.read(count=1)
+
+    data_combined = ((data_b0[0] & 0b00111111) << 6) + (data_b1[0] & 0b00111111)
+
+    assert data_combined == 0b110010_001101
 
 
     dut._log.info("test software reset")
     await uart_source.write([0b10000000])
     await uart_source.wait()
-    assert dut.user_project.uart_interface_inst.sensor_r.value == 0b0 # check that the internal sensor register is reset to 0
+    
+    await uart_source.write([0b10001000]) # command to return value in sensor register
+    await uart_source.wait()
+
+    data_b0 = await uart_sink.read(count=1)
+    data_b1 = await uart_sink.read(count=1)
+
+    data_combined = ((data_b0[0] & 0b00111111) << 6) + (data_b1[0] & 0b00111111)
+
+    assert data_combined == 0b0
 
     dut._log.info("test set Kp")
     await uart_source.write([0b11000011]) # write 0011
@@ -81,8 +111,6 @@ async def test_project(dut):
     await uart_source.write([0b10111111]) # write xxxxxxxx1111
     await uart_source.wait()
     assert dut.user_project.uart_interface_inst.setpoint_o.value == 0b0001_0110_1111
-
-    uart_sink = UartSink(dut.tx_out, baud=115200, bits=8)
 
 
     dut._log.info("set sensor value less than setpoint")

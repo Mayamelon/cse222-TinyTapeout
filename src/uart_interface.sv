@@ -4,6 +4,7 @@ module uart_interface (
 
     output [15:0] tx_data_o,
     output [0:0] tx_data_valid_o,
+    input [0:0] tx_data_ready_i,
 
     input [0:0] clk_i,
     input [0:0] reset_i, // reset high
@@ -118,6 +119,9 @@ module uart_interface (
         process_data_n = 1'b0;
         soft_reset_n = 1'b0;
         reset_accumulated_error_n = 1'b0;
+
+        tx_data_n = 0;
+        tx_data_valid_n = 1'b0;
     
         if (rx_data_valid_i) begin
             case (rx_data_i[7:7])
@@ -141,28 +145,36 @@ module uart_interface (
                                 4'b0010, 4'b0011: /* do nothing */;
                                 4'b0100, 4'b0101, 4'b0110, 4'b0111: /* do nothing */;
                                 4'b1000: begin
-                                    // TODO: need to handle case where you request something else while tx command running
-                                    // TODO: make this not overwritten later
-                                    tx_data_n = {2'b00, sensor_r[11:6], 2'b01, sensor_r[5:0]};
-                                    tx_data_valid_n = 1;
+                                    if (tx_data_ready_i) begin
+                                        tx_data_n = {2'b00, sensor_r[11:6], 2'b01, sensor_r[5:0]};
+                                        tx_data_valid_n = 1;
+                                    end else begin
+                                        // do nothing
+                                    end
                                 end
                                 4'b1001: begin
-                                    // TODO: need to handle case where you request something else while tx command running
-                                    // TODO: make this not overwritten later
-                                    tx_data_n = {2'b00, setpoint_r[11:6], 2'b01, setpoint_r[5:0]};
-                                    tx_data_valid_n = 1;
+                                    if (tx_data_ready_i) begin
+                                        tx_data_n = {2'b00, setpoint_r[11:6], 2'b01, setpoint_r[5:0]};
+                                        tx_data_valid_n = 1;
+                                    end else begin
+                                        // do nothing
+                                    end
                                 end
                                 4'b1010: begin
-                                    // TODO: need to handle case where you request something else while tx command running
-                                    // TODO: make this not overwritten later
-                                    tx_data_n = {4'b0000, Kp_r, 4'b0001, Ki_r};
-                                    tx_data_valid_n = 1;
+                                    if (tx_data_ready_i) begin
+                                        tx_data_n = {4'b0000, Kp_r, 4'b0001, Ki_r};
+                                        tx_data_valid_n = 1;
+                                    end else begin
+                                        // do nothing
+                                    end
                                 end
                                 4'b1011: begin
-                                    // TODO: need to handle case where you request something else while tx command running
-                                    // TODO: make this not overwritten later
-                                    tx_data_n = {accumulated_error_i[15:8], accumulated_error_i[7:0]};
-                                    tx_data_valid_n = 1;
+                                    if (tx_data_ready_i) begin
+                                        tx_data_n = {accumulated_error_i[15:8], accumulated_error_i[7:0]};
+                                        tx_data_valid_n = 1;
+                                    end else begin
+                                        // do nothing
+                                    end
                                 end
                                 4'b1100, 4'b1101, 4'b1110, 4'b1111: /* do nothing */;
                             endcase
@@ -183,14 +195,9 @@ module uart_interface (
 
         // Transmit:
 
-        // TODO: need to handle case where you request something else while tx command running
-        // TODO: make this not overwritten later
-        if (result_valid_i) begin
+        if (result_valid_i & tx_data_ready_i) begin
             tx_data_n = {2'b00, result_i[11:6], 2'b01, result_i[5:0]};
             tx_data_valid_n = 1;
-        end else begin
-            tx_data_n = 0;
-            tx_data_valid_n = 0;
         end
 
 

@@ -32,6 +32,7 @@ module tt_um_mayamelon_top (
 
     wire [15:0] tx_data_w;
     wire [0:0] tx_data_valid_w;
+    wire [0:0] tx_data_ready_w;
     
     wire [7:0] rx_data_w;
     wire [0:0] rx_data_valid_w;
@@ -57,6 +58,7 @@ module tt_um_mayamelon_top (
         
         .tx_data_i(tx_data_w),
         .tx_data_valid_i(tx_data_valid_w),
+        .tx_data_ready_o(tx_data_ready_w),
         
         .rx_data_o(rx_data_w),
         .rx_data_valid_o(rx_data_valid_w)
@@ -83,6 +85,7 @@ module tt_um_mayamelon_top (
 
         .tx_data_o(tx_data_w),
         .tx_data_valid_o(tx_data_valid_w),
+        .tx_data_ready_i(tx_data_ready_w),
 
         .clk_i(clk),
         .reset_i(reset_w),
