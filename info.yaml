@@ -2,7 +2,7 @@
 project:
   title:        "Tiny PI Controller"      # Project title
   author:       "Cole Lewis"      # Your name
-  discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
+  discord:      "mayamelon"      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
   description:  "Implements a simple PI controller for control systems applications with a UART interface"      # One line description of what your project does
   language:     "SystemVerilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
   clock_hz:     12000000       # Clock frequency in Hz (or 0 if not applicable)
