@@ -23,7 +23,7 @@ module uart_interface (
 
     output [0:0] soft_reset_o,
     
-    input [11:0] result_i,
+    input signed [11:0] result_i,
     input [0:0] result_valid_i
 );
 

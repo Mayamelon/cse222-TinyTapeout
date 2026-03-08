@@ -48,14 +48,10 @@ async def test_project(dut):
     
     await uart_source.write([0b10001000]) # command to return value in sensor register
     await uart_source.wait()
-
     data_b0 = await uart_sink.read(count=1)
     data_b1 = await uart_sink.read(count=1)
-
     data_combined = ((data_b0[0] & 0b00111111) << 6) + (data_b1[0] & 0b00111111)
-
     assert data_combined == 0b000000_000001
-    
     
 
     dut._log.info("check write sensor value, should be 0b110010001101")
@@ -69,12 +65,9 @@ async def test_project(dut):
     
     await uart_source.write([0b10001000]) # command to return value in sensor register
     await uart_source.wait()
-
     data_b0 = await uart_sink.read(count=1)
     data_b1 = await uart_sink.read(count=1)
-
     data_combined = ((data_b0[0] & 0b00111111) << 6) + (data_b1[0] & 0b00111111)
-
     assert data_combined == 0b110010_001101
 
 
@@ -84,23 +77,28 @@ async def test_project(dut):
     
     await uart_source.write([0b10001000]) # command to return value in sensor register
     await uart_source.wait()
-
     data_b0 = await uart_sink.read(count=1)
     data_b1 = await uart_sink.read(count=1)
-
     data_combined = ((data_b0[0] & 0b00111111) << 6) + (data_b1[0] & 0b00111111)
-
     assert data_combined == 0b0
+
 
     dut._log.info("test set Kp")
     await uart_source.write([0b11000011]) # write 0011
     await uart_source.wait()
-    assert dut.user_project.uart_interface_inst.Kp_o.value == 0b0011
     
     dut._log.info("test set Ki")
     await uart_source.write([0b11010110]) # write 0110
     await uart_source.wait()
-    assert dut.user_project.uart_interface_inst.Ki_o.value == 0b0110
+    
+    await uart_source.write([0b10001010]) # command to return values in Kp, Ki
+    await uart_source.wait()
+    data_b0 = await uart_sink.read(count=1)
+    data_b1 = await uart_sink.read(count=1)
+    data_Kp = ((data_b0[0] & 0b00001111))
+    data_Ki = ((data_b1[0] & 0b00001111))
+    assert data_Kp == 0b0011
+    assert data_Ki == 0b0110
 
     
     dut._log.info("test set the setpoint")
@@ -110,7 +108,13 @@ async def test_project(dut):
     await uart_source.wait()
     await uart_source.write([0b10111111]) # write xxxxxxxx1111
     await uart_source.wait()
-    assert dut.user_project.uart_interface_inst.setpoint_o.value == 0b0001_0110_1111
+    
+    await uart_source.write([0b10001001]) # command to return value in setpoint register
+    await uart_source.wait()
+    data_b0 = await uart_sink.read(count=1)
+    data_b1 = await uart_sink.read(count=1)
+    data_combined = ((data_b0[0] & 0b00111111) << 6) + (data_b1[0] & 0b00111111)
+    assert data_combined == 0b0001_0110_1111
 
 
     dut._log.info("set sensor value less than setpoint")
@@ -118,13 +122,20 @@ async def test_project(dut):
     await uart_source.wait()
     await uart_source.write([0b01101111]) # write xxxxxx101111
     await uart_source.wait()
-    dut._log.info("test if transmit occurs")
-    data_1 = await uart_sink.read(count=1)
-    data_1 += await uart_sink.read(count=1)
+    dut._log.info("test if returned output is positive")
+    data_1_b0 = await uart_sink.read(count=1)
+    data_1_b1 = await uart_sink.read(count=1)
+    data_1_combined = ((data_1_b0[0] & 0b00111111) << 6) + (data_1_b1[0] & 0b00111111)
+    # convert to signed
+    data_1_signed = 0
+    if data_1_combined >= 0x800:
+        data_1_signed = data_1_combined - 0x1000
+    else:
+        data_1_signed = data_1_combined
 
     await ClockCycles(dut.clk, 5000)
 
-    assert int.from_bytes(data_1, byteorder='big', signed=True) > 0
+    assert data_1_signed > 0
 
     
     dut._log.info("same sensor value")
@@ -133,12 +144,19 @@ async def test_project(dut):
     await uart_source.write([0b01101111]) # write xxxxxx101111
     await uart_source.wait()
     dut._log.info("test if new data is greater than before 1")
-    data_2 = await uart_sink.read(count=1)
-    data_2 += await uart_sink.read(count=1)
+    data_2_b0 = await uart_sink.read(count=1)
+    data_2_b1 = await uart_sink.read(count=1)
+    data_2_combined = ((data_2_b0[0] & 0b00111111) << 6) + (data_2_b1[0] & 0b00111111)
+    # convert to signed
+    data_2_signed = 0
+    if data_2_combined >= 0x800:
+        data_2_signed = data_2_combined - 0x1000
+    else:
+        data_2_signed = data_2_combined
 
     await ClockCycles(dut.clk, 5000)
     
-    assert int.from_bytes(data_2, byteorder='big', signed=True) > int.from_bytes(data_1, byteorder='big', signed=True)
+    assert data_2_signed > data_1_signed
     
 
     
@@ -148,17 +166,60 @@ async def test_project(dut):
     await uart_source.write([0b01101111]) # write xxxxxx101111
     await uart_source.wait()
     dut._log.info("test if new data is greater than before 2")
-    data_3 = await uart_sink.read(count=1)
-    data_3 += await uart_sink.read(count=1)
+    data_3_b0 = await uart_sink.read(count=1)
+    data_3_b1 = await uart_sink.read(count=1)
+    data_3_combined = ((data_3_b0[0] & 0b00111111) << 6) + (data_3_b1[0] & 0b00111111)
+    # convert to signed
+    data_3_signed = 0
+    if data_3_combined >= 0x800:
+        data_3_signed = data_3_combined - 0x1000
+    else:
+        data_3_signed = data_3_combined
 
     await ClockCycles(dut.clk, 5000)
     
-    assert int.from_bytes(data_3, byteorder='big', signed=True) > int.from_bytes(data_2, byteorder='big', signed=True)
+    assert data_3_signed > data_2_signed
+
+    
+    dut._log.info("test accumulated error: should be greater than 0")
+    await uart_source.write([0b10001011])
+    await uart_source.wait()
+    data_b0 = await uart_sink.read(count=1)
+    data_b1 = await uart_sink.read(count=1)
+    data_combined = ((data_b0[0]) << 8) + (data_b1[0])
+    # convert to signed
+    data_signed = 0
+    if data_combined >= 0x8000:
+        data_signed = data_combined - 0x10000
+    else:
+        data_signed = data_combined
+
+    await ClockCycles(dut.clk, 5000)
+
+    assert data_signed > 0
 
     
     dut._log.info("test reset accumulated error")
     await uart_source.write([0b10000001])
     await uart_source.wait()
+
+    await ClockCycles(dut.clk, 5000)
+
+    await uart_source.write([0b10001011])
+    await uart_source.wait()
+    data_b0 = await uart_sink.read(count=1)
+    data_b1 = await uart_sink.read(count=1)
+    data_combined = ((data_b0[0]) << 8) + (data_b1[0])
+    # convert to signed
+    data_signed = 0
+    if data_combined >= 0x8000:
+        data_signed = data_combined - 0x10000
+    else:
+        data_signed = data_combined
+        
+    await ClockCycles(dut.clk, 5000)
+
+    assert data_signed == 0b0
 
 
     dut._log.info("same sensor value")
@@ -167,12 +228,19 @@ async def test_project(dut):
     await uart_source.write([0b01101111]) # write xxxxxx101111
     await uart_source.wait()
     dut._log.info("test if new data is less than before")
-    data_4 = await uart_sink.read(count=1)
-    data_4 += await uart_sink.read(count=1)
+    data_4_b0 = await uart_sink.read(count=1)
+    data_4_b1 = await uart_sink.read(count=1)
+    data_4_combined = ((data_4_b0[0] & 0b00111111) << 6) + (data_4_b1[0] & 0b00111111)
+    # convert to signed
+    data_4_signed = 0
+    if data_4_combined >= 0x800:
+        data_4_signed = data_4_combined - 0x1000
+    else:
+        data_4_signed = data_4_combined
 
     await ClockCycles(dut.clk, 5000)
     
-    assert int.from_bytes(data_4, byteorder='big', signed=True) < int.from_bytes(data_3, byteorder='big', signed=True)
+    assert data_4_signed < data_3_signed
 
     
     dut._log.info("reset accumulated error")
@@ -186,9 +254,18 @@ async def test_project(dut):
     await uart_source.write([0b01111111]) # write xxxxxx111111
     await uart_source.wait()
     dut._log.info("test if new data is negative")
-    data_5 = await uart_sink.read(count=1)
-    data_5 += await uart_sink.read(count=1)
+    data_5_b0 = await uart_sink.read(count=1)
+    data_5_b1 = await uart_sink.read(count=1)
+    data_5_combined = ((data_5_b0[0] & 0b00111111) << 6) + (data_5_b1[0] & 0b00111111)
+
+
+    # convert to signed
+    data_5_signed = 0
+    if data_5_combined >= 0x800:
+        data_5_signed = data_5_combined - 0x1000
+    else:
+        data_5_signed = data_5_combined
 
     await ClockCycles(dut.clk, 5000)
     
-    assert int.from_bytes(data_5, byteorder='big', signed=True) < 0
+    assert data_5_signed < 0

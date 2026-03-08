@@ -24,33 +24,27 @@ module pi_controller (
 
 );
 
-wire signed [11:0] error_w;
+wire signed [12:0] error_w;
 
 assign error_w = setpoint_i - sensor_i;
 
-logic signed [15:0] accumulated_error_l; // signed. Should not be more than 2^15-1 = 32767 or less than -2^15 = -32768
+logic signed [15:0] accumulated_error_r;
+logic signed [15:0] accumulated_error_n;
+
+logic signed [15:0] accumulated_error_plus_error_l;
+assign accumulated_error_plus_error_l = accumulated_error_r + {{4{error_w[12:12]}}, error_w[11:0]};
 
 always_ff @(posedge clk_i) begin
     if (reset_i | reset_accumulated_error_i) begin
-        accumulated_error_l <= 16'h0;
+        accumulated_error_r <= 16'h0;
     end else begin
-        if (process_data_i) begin
-            if ((accumulated_error_l + {4'b0, error_w}) > 17'd32767) begin
-                accumulated_error_l <= 32767;
-            end else if ((accumulated_error_l + {4'b0, error_w}) < -17'd32768) begin
-                accumulated_error_l <= -32768;
-            end else begin
-                accumulated_error_l <= (accumulated_error_l + {4'b0, error_w});
-            end
-        end else begin
-            // do nothing
-        end
+        accumulated_error_r <= accumulated_error_n;
     end
 end
 
-assign accumulated_error_o = accumulated_error_l;
+assign accumulated_error_o = accumulated_error_r;
 
-logic signed [12:0] p_l;
+logic signed [13:0] p_l;
 logic signed [16:0] i_l;
 
 logic signed [16:0] sum_l;
@@ -59,35 +53,55 @@ logic signed [11:0] result_l; // ranges from 2,047 to -2,048
 
 logic [0:0] result_valid_l;
 
+logic signed [13:0] p_shifted_l;
+logic signed [16:0] i_shifted_l;
+
 always_comb begin
+
+    // accumulate integrator error
+    if (process_data_i) begin
+        if (accumulated_error_plus_error_l > 32767) begin
+            accumulated_error_n = 16'd32767;
+        end else if (accumulated_error_plus_error_l < -32768) begin
+            accumulated_error_n = -16'd32768;
+        end else begin
+            accumulated_error_n = accumulated_error_plus_error_l[15:0];
+        end
+    end else begin
+        accumulated_error_n = accumulated_error_r;
+    end
+
+    p_shifted_l = {error_w[12:12], error_w >>> {10'b0, Kp_i}};
+    i_shifted_l = {accumulated_error_r[15:15], accumulated_error_r >>> {12'b0, Ki_i}};
+
     p_l = 0;
     i_l = 0;
     sum_l = 0;
     result_l = 0;
     result_valid_l = 0;
     if (process_data_i) begin
-        if (Kp_i <= 4'h7) begin
-            p_l = ({{1'b0, error_w} >>> Kp_i}); // arithmetic right shift preserves sign
-        end else if (Kp_i == 4'h8) begin
-            p_l = ({{1'b0, error_w} <<< 1}); // arithmetic left shift preserves sign
+        if (Kp_i <= 7) begin
+            p_l = p_shifted_l;
+        end else if (Kp_i == 8) begin
+            p_l = ({error_w[12:0], 1'b0}); // left shift by one equals pad right with a 0
         end else begin // disable p term
             p_l = 0;
         end
         
-        if (Ki_i <= 4'h7) begin
-            i_l = ({{1'b0, accumulated_error_l} >>> Ki_i}); // arithmetic right shift preserves sign
-        end else if (Ki_i == 4'h8) begin
-            i_l = ({{1'b0, accumulated_error_l} <<< 1}); // arithmetic left shift preserves sign
+        if (Ki_i <= 7) begin
+            i_l = i_shifted_l;
+        end else if (Ki_i == 8) begin
+            i_l = ({accumulated_error_r[15:0], 1'b0}); // right shift by one equals pad right with a 0
         end else begin // disable i term
             i_l = 0;
         end
 
-        sum_l = {{4'b0, p_l} + i_l};
+        sum_l = {{4{p_l[13:13]}}, p_l[12:0]} + i_l;
 
         if (sum_l > 2047) begin
-            result_l = 2047;
+            result_l = 12'd2047;
         end else if (sum_l < -2048) begin
-            result_l = -2048;
+            result_l = -12'd2048;
         end else begin
             result_l = {sum_l[16:16], sum_l[10:0]};
         end
